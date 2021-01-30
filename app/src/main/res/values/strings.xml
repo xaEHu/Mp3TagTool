@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Mp3TagTool</string>
+    <string name="github_url">项目已开源，GitHub地址：\nhttps://github.com/xaEHu/Mp3TagTool</string>
+    <string name="content">开发者：xaeHu\n开发语言：kotlin\nID3Tag库：jaudiotagger\n网络请求库：okhttp\n专辑图api：网易云音乐
+    </string>
+    <string name="title">本地音乐专辑图写入工具\nMp3TagTool</string>
+    <string name="start">start</string>
+    <string name="btn_add">更多Android小工具欢迎添加QQ群</string>
 </resources>

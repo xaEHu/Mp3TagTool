@@ -1,17 +1,20 @@
 package com.xaehu.mp3tagtool
 
+import android.app.Activity
+import android.content.Intent
+import android.database.Cursor
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
+import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.text.TextUtils
 import android.util.Log
 import android.view.MenuItem
-import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import coil.imageLoader
-import coil.load
 import coil.request.ImageRequest
 import kotlinx.android.synthetic.main.activity_match.*
 import okhttp3.*
@@ -24,7 +27,6 @@ import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.lang.Exception
 
 
 class MatchActivity : AppCompatActivity() {
@@ -41,13 +43,10 @@ class MatchActivity : AppCompatActivity() {
         recycler.layoutManager = LinearLayoutManager(this)
         adapter.setListener(object : MyListAdapter.OnListener {
             override fun setOnItemClickListener(bean: SongBean,position:Int) {
-                val url = bean.path
-                val img = ImageView(applicationContext)
-                img.load(url)
-                alert("写入专辑图", "确定写入吗？") {
+                alert {
+                    setTitle("写入专辑图")
                     negativeButton("下次一定") {}
                     positiveButton("写入") {
-//                        indeterminateProgressDialog("正在写入")
                         val request = ImageRequest.Builder(this@MatchActivity)
                             .data(bean.path)
                             .target { drawable ->
@@ -64,7 +63,7 @@ class MatchActivity : AppCompatActivity() {
                                 writeTag(path, File(filePath))
                             }
                             .build()
-                        val disposable = imageLoader.enqueue(request)
+                        imageLoader.enqueue(request)
                     }
                 }.show()
             }
@@ -80,6 +79,14 @@ class MatchActivity : AppCompatActivity() {
         }
         btn_search.setOnClickListener {
             search(et_name.text.toString(), et_singer.text.toString())
+        }
+
+        btnSelect.setOnClickListener{
+            val intent = Intent(
+                Intent.ACTION_PICK,
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            )
+            startActivityForResult(intent,1)
         }
 
     }
@@ -168,22 +175,27 @@ class MatchActivity : AppCompatActivity() {
     }
 
     fun writeTag(path: String?, picFile: File?) {
-//        val picFile = File(url!!)
         val mp3File = MP3File(path)
-        if (mp3File.hasID3v2Tag()) {
-            Log.i(TAG, "writeTag: ")
             mp3File.run {
-                Log.i(TAG, "writeTag: run")
                 val artWork = ArtworkFactory.createArtworkFromFile(picFile)
-                iD3v2Tag.setField(artWork)
+                when {
+                    hasID3v2Tag() -> {
+                        iD3v2Tag.setField(artWork)
+                    }
+                    hasID3v1Tag() -> {
+//                        iD3v1Tag.setField(artWork) 这个方法行不通
+                        Toast.makeText(applicationContext, "暂不支持ID3v1Tag歌曲", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+                    else -> {
+                        Toast.makeText(applicationContext, "此歌曲没有ID3Tag", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+                }
                 save()
                 Toast.makeText(applicationContext, "写入完成", Toast.LENGTH_SHORT).show()
                 setResult(1001)
             }
-
-        }else{
-            Toast.makeText(applicationContext, "此歌曲没有ID3v2Tag", Toast.LENGTH_SHORT).show()
-        }
     }
 
     /**
@@ -213,6 +225,35 @@ class MatchActivity : AppCompatActivity() {
             return file
         }
         return null
+    }
+
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?
+    ) {
+        if (requestCode == 1 && resultCode == Activity.RESULT_OK && null != data) {
+            val selectedImage: Uri? = data.data
+            val filePathColumn =
+                arrayOf(MediaStore.Images.Media.DATA)
+            //查询我们需要的数据
+            val cursor: Cursor? = contentResolver.query(
+                selectedImage!!,
+                filePathColumn, null, null, null
+            )
+            cursor?.moveToFirst()
+            val columnIndex: Int = cursor?.getColumnIndex(filePathColumn[0])!!
+            val picturePath = cursor.getString(columnIndex)
+            cursor.close()
+
+            alert("\n将选择的图片作为专辑图写入该歌曲中？", "写入专辑图") {
+                negativeButton("下次一定") {}
+                positiveButton("写入") {
+                    writeTag(path, File(picturePath))
+                }
+            }.show()
+        }
+        super.onActivityResult(requestCode, resultCode, data)
     }
 
 }

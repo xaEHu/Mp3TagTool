@@ -31,12 +31,13 @@ class MyListAdapter(private val data: MutableList<SongBean>) :
         holder.itemView.apply {
             tv1.text = data[position].name
             tv2.text = data[position].singer
-            tv3.text = data[position].path
+            val path = data[position].path
+            tv3.text = path
             tv3.isSelected = true
-            if(tv3.text.startsWith("http")){
-                Log.i(TAG, "load_picture:${data[position].path}")
+            if(path!!.startsWith("http")){
+                Log.i(TAG, "load_picture:${path}")
                 img.visibility = View.VISIBLE
-                img.load(data[position].path){
+                img.load(path){
                     crossfade(true)
                 }
             }else{
