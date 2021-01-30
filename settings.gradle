@@ -1,0 +1,3 @@
+include ':app'
+include ':jaudiotagger'
+rootProject.name = "Mp3TagTool"
