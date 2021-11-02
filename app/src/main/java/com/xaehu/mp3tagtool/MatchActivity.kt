@@ -105,7 +105,8 @@ class MatchActivity : AppCompatActivity() {
         val okHttpClient = OkHttpClient()
         val request: Request = Request.Builder()
             .url(url)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            .addHeader("Cookie", "NMTID="+System.currentTimeMillis())
             .build()
         val call = okHttpClient.newCall(request)
         call.enqueue(object : Callback {
@@ -118,6 +119,7 @@ class MatchActivity : AppCompatActivity() {
 
             override fun onResponse(call: Call, response: Response) {
                 val jsonObject = JSONObject(response.body()!!.string())
+                Log.i(TAG, "onResponse: $jsonObject")
                 runOnUiThread {
                     btn_search.isEnabled = true
                     btn_search.text = "搜索"
@@ -156,7 +158,12 @@ class MatchActivity : AppCompatActivity() {
                             Toast.makeText(applicationContext, "什么都没有搜到", Toast.LENGTH_SHORT).show()
                         }
                     } else {
-                        Toast.makeText(applicationContext, "服务器数据错误", Toast.LENGTH_SHORT).show()
+                        var msg = jsonObject.getString("message")
+                        if(msg.isEmpty()){
+                            Toast.makeText(applicationContext, msg, Toast.LENGTH_SHORT).show()
+                        }else{
+                            Toast.makeText(applicationContext, "服务器数据错误", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             }
