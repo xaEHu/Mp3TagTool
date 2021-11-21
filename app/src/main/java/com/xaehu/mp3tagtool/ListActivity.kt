@@ -12,6 +12,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.recyclerview.widget.LinearLayoutManager
 import kotlinx.android.synthetic.main.activity_list.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.*
 
 
@@ -25,18 +29,20 @@ class ListActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_list)
         title = "本地歌曲"
-        allList = getMusicList()
-        recycler.adapter = adapter
-        recycler.layoutManager = LinearLayoutManager(this)
-        adapter.setListener(object : MyListAdapter.OnListener {
-            override fun setOnItemClickListener(bean: SongBean,position:Int) {
-                this@ListActivity.position = position
-                val intent = Intent(this@ListActivity, MatchActivity::class.java)
-                intent.putExtra("data", bean)
-                startActivityForResult(intent,1000)
-            }
-        })
-        adapter.setNewData(allList)
+        GlobalScope.launch (Dispatchers.Main){
+            allList = getMusicList()
+            recycler.adapter = adapter
+            recycler.layoutManager = LinearLayoutManager(applicationContext)
+            adapter.setListener(object : MyListAdapter.OnListener {
+                override fun setOnItemClickListener(bean: SongBean,position:Int) {
+                    this@ListActivity.position = position
+                    val intent = Intent(this@ListActivity, MatchActivity::class.java)
+                    intent.putExtra("data", bean)
+                    startActivityForResult(intent,1000)
+                }
+            })
+            adapter.setNewData(allList)
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -100,45 +106,47 @@ class ListActivity : AppCompatActivity() {
     /**
      * 得到媒体的音乐文件列表
      */
-    private fun getMusicList(): MutableList<SongBean> {
+    private suspend fun getMusicList(): MutableList<SongBean> {
         val list: MutableList<SongBean> = ArrayList()
-        val cursor: Cursor? = this.contentResolver.query(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            null,
-            null,
-            null,
-            MediaStore.Audio.AudioColumns.IS_MUSIC
-        )
-        if (cursor != null) {
-            var song: SongBean
-            while (cursor.moveToNext()) {
-                var singer = ""
-                var name = ""
-                val path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA))
-                val split = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME))
-                    .split("-")
-                val size = split.size
-                when {
-                    size == 1 -> {
-                        name = split[0]
-                    }
-                    size == 2 -> {
-                        singer = split[0]
-                        name = split[1]
-                    }
-                    size > 2 -> {
-                        name = split.last()
-                        for (i in 0 until size-1){
-                            singer += " "+split[i]
+        withContext(Dispatchers.IO){
+            val cursor: Cursor? = contentResolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                null,
+                null,
+                null,
+                MediaStore.Audio.AudioColumns.IS_MUSIC
+            )
+            if (cursor != null) {
+                var song: SongBean
+                while (cursor.moveToNext()) {
+                    var singer = ""
+                    var name = ""
+                    val path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA))
+                    val split = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME))
+                        .split("-")
+                    val size = split.size
+                    when {
+                        size == 1 -> {
+                            name = split[0]
+                        }
+                        size == 2 -> {
+                            singer = split[0]
+                            name = split[1]
+                        }
+                        size > 2 -> {
+                            name = split.last()
+                            for (i in 0 until size-1){
+                                singer += " "+split[i]
+                            }
                         }
                     }
+                    song = SongBean(name.replace(".mp3", "").trim(), singer.trim(), path)
+                    list.add(song)
                 }
-                song = SongBean(name.replace(".mp3", "").trim(), singer.trim(), path)
-                list.add(song)
+                cursor.close()
             }
-            cursor.close()
+            list.reverse()
         }
-        list.reverse()
         return list
     }
 
